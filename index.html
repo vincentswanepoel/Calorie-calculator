@@ -180,7 +180,7 @@
             margin-bottom: 0.5rem;
         }
         .meal-item ul {
-            list-style-type: none; /* Remove default bullets */
+            list-style-type: none;
             padding-left: 0;
             color: #E0E0E0;
         }
@@ -196,10 +196,9 @@
             border-radius: 0.5rem;
             border: 1px solid #444444;
             object-fit: cover;
-            flex-shrink: 0; /* Prevents the image from shrinking */
+            flex-shrink: 0;
         }
         
-        /* Blinking animation for loading indicator */
         @keyframes blink {
             0% { opacity: 0; }
             50% { opacity: 1; }
@@ -212,6 +211,17 @@
     </style>
 </head>
 <body>
+    <!-- API Key Configuration Section -->
+    <div id="api-key-config" class="container-calculator w-full">
+        <h2 class="text-2xl font-bold mb-4 text-center gradient-text">Configure API Key</h2>
+        <p class="text-sm text-gray-400 mb-4 text-center">To generate meal plans, you need to provide your Google Gemini API key. Get it from <a href="https://aistudio.google.com/app/apikey" target="_blank" class="accent-link">Google AI Studio</a>.</p>
+        <div class="flex items-center space-x-2">
+            <input type="password" id="api-key-input" placeholder="Enter your Gemini API Key here" class="form-input flex-grow">
+            <button id="save-api-key-button" class="submit-button p-2 text-sm md:text-base">Save Key</button>
+        </div>
+        <p id="api-key-status" class="mt-2 text-center text-sm font-semibold"></p>
+    </div>
+
     <!-- Advanced Calorie & Macro Calculator Section -->
     <div id="calorie-calculator-section" class="container-calculator w-full">
         <h1 class="text-3xl sm:text-4xl font-extrabold leading-tight mb-4 gradient-text">
@@ -354,8 +364,38 @@
         const loadingIndicator = document.getElementById('loading-indicator');
         const contentContainer = document.getElementById('content-container');
         
+        const apiKeyInput = document.getElementById('api-key-input');
+        const saveApiKeyButton = document.getElementById('save-api-key-button');
+        const apiKeyStatus = document.getElementById('api-key-status');
+
+        let geminiApiKey = '';
         let heightUnit = 'cm';
         let weightUnit = 'kg';
+
+        // Initialize and check for existing API key
+        function init() {
+            const savedKey = localStorage.getItem('geminiApiKey');
+            if (savedKey) {
+                geminiApiKey = savedKey;
+                apiKeyInput.value = '********'; // Mask the key
+                apiKeyStatus.textContent = 'API Key saved successfully!';
+                apiKeyStatus.className = 'mt-2 text-center text-sm font-semibold text-green-500';
+            } else {
+                apiKeyStatus.textContent = 'No API Key found. Please enter it above.';
+                apiKeyStatus.className = 'mt-2 text-center text-sm font-semibold text-red-500';
+            }
+        }
+
+        // Event listeners for API key management
+        saveApiKeyButton.addEventListener('click', () => {
+            if (apiKeyInput.value && apiKeyInput.value !== '********') {
+                geminiApiKey = apiKeyInput.value.trim();
+                localStorage.setItem('geminiApiKey', geminiApiKey);
+                apiKeyInput.value = '********'; // Mask the key
+                apiKeyStatus.textContent = 'API Key saved successfully!';
+                apiKeyStatus.className = 'mt-2 text-center text-sm font-semibold text-green-500';
+            }
+        });
 
         // Event listeners for unit toggles
         heightUnitBtns.forEach(btn => {
@@ -377,6 +417,12 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            if (!geminiApiKey) {
+                apiKeyStatus.textContent = 'Please enter and save your API Key first!';
+                apiKeyStatus.className = 'mt-2 text-center text-sm font-semibold text-red-500';
+                return;
+            }
+
             const age = parseInt(document.getElementById('age').value);
             const gender = document.getElementById('gender').value;
             let height = parseFloat(heightInput.value);
@@ -385,12 +431,11 @@
             const goal = document.getElementById('goal').value;
             const dietType = document.getElementById('diet').value;
 
-            // Convert units to metric for calculation
             if (heightUnit === 'in') {
-                height *= 2.54; // inches to cm
+                height *= 2.54;
             }
             if (weightUnit === 'lb') {
-                weight /= 2.20462; // lbs to kg
+                weight /= 2.20462;
             }
 
             let bmr;
@@ -422,16 +467,14 @@
             calculatorResultsDiv.style.display = 'block';
             calculatorResultsDiv.scrollIntoView({ behavior: 'smooth' });
 
-            // --- AI-POWERED CONTENT GENERATION ---
             await generateAIContent(dietType, finalCalories, proteinGrams, carbsGrams, fatsGrams);
         });
 
-        // Exponential backoff for API calls
         async function fetchWithRetry(url, options, maxRetries = 5, delay = 1000) {
             for (let i = 0; i < maxRetries; i++) {
                 try {
                     const response = await fetch(url, options);
-                    if (response.status !== 429) { // Not a rate limit error, proceed
+                    if (response.status !== 429) {
                         return response;
                     }
                 } catch (error) {
@@ -446,11 +489,9 @@
             loadingIndicator.style.display = 'block';
             contentContainer.innerHTML = '';
             
-            const apiKey = "";
-            const textApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-            const imageApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+            const textApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`;
+            const imageApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${geminiApiKey}`;
 
-            // Original logic for diet types
             const textPrompt = `Generate a 3-meal plan (Breakfast, Lunch, Dinner) for a ${dietType} diet, targeting approximately ${calorieGoal} calories. If the diet is "Carnivore", make sure to mention or include biltong or droëwors as a meal or snack. The meal ideas should be based on ingredients you could easily find at South African stores like Checkers or Woolworths. Be specific with food items and portion sizes. For each meal item, provide a brief, descriptive phrase suitable for an image generation model. Format the response as a JSON object with the following structure: 
             {
                 "diet_name": "${dietType}",
@@ -492,7 +533,6 @@
                 };
             }
 
-            // Generate and display the meal plan card
             const dietCard = document.createElement('div');
             dietCard.className = 'diet-plan-card';
             dietCard.innerHTML = `<h2 class="text-2xl font-bold mb-4 gradient-text text-center">${mealPlanData.diet_name} Diet Plan</h2><div class="meal-plan-grid"></div>`;
@@ -512,7 +552,6 @@
                     `;
                     ul.appendChild(li);
 
-                    // Generate image for each item using Imagen API
                     const imagePrompt = `a small, top-down view of ${item.image_prompt}`;
                     const imagePayload = {
                         instances: { prompt: imagePrompt },
@@ -540,6 +579,8 @@
             contentContainer.appendChild(dietCard);
             loadingIndicator.style.display = 'none';
         }
+
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
