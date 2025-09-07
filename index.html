@@ -444,23 +444,22 @@
             contentContainer.innerHTML = '';
             
             const textApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`;
-            const imageApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${geminiApiKey}`;
+            const imageApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${geminiApiKey}`;
 
-            const textPrompt = `Generate a 3-meal plan (Breakfast, Lunch, Dinner) for a ${dietType} diet, targeting approximately ${calorieGoal} calories. The meal ideas should be based on ingredients you could easily find at South African stores like Checkers or Woolworths. Be specific with food items and portion sizes. For each meal item, provide a brief, descriptive phrase suitable for an image generation model. Format the response as a JSON object with the following structure: 
+            const textPrompt = `Generate a 3-meal plan (Breakfast, Lunch, Dinner) for a ${dietType} diet, targeting approximately ${calorieGoal} calories. Each meal should have a detailed description that includes specific weights and portion sizes, similar to the style of eatthismuch.com. For each meal item, provide a brief, descriptive phrase suitable for an image generation model. The meal ideas should be based on ingredients you could easily find at South African stores like Checkers or Woolworths. Format the response as a JSON object with the following structure: 
             {
                 "diet_name": "${dietType}",
                 "meals": [
                     {
                         "meal_name": "Breakfast",
                         "items": [
-                            {"description": "...", "image_prompt": "a stylized drawing of ..."},
+                            {"description": "...", "image_prompt": "a simple illustration of ..."},
                             ...
                         ]
                     },
                     ...
                 ]
-            }
-            The descriptions should be detailed and the image prompts should be concise and visual.`;
+            }`;
 
             const textPayload = {
                 contents: [{ parts: [{ text: textPrompt }] }],
@@ -506,15 +505,16 @@
                     `;
                     ul.appendChild(li);
 
-                    const imagePrompt = `a small, top-down view of ${item.image_prompt}`;
+                    const imagePrompt = `a small, simple, and clean illustration of ${item.image_prompt}`;
                     
                     const imgElement = li.querySelector('img');
                     
                     try {
                         const imagePayload = {
-                            instances: { prompt: imagePrompt },
-                            parameters: { "sampleCount": 1 }
+                          contents: [{ parts: [{ text: imagePrompt }] }],
+                          generationConfig: { responseModalities: ['IMAGE'] },
                         };
+
                         const imageResponse = await fetchWithRetry(imageApiUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -522,8 +522,9 @@
                         });
 
                         const imageResult = await imageResponse.json();
-                        if (imageResult.predictions && imageResult.predictions.length > 0 && imageResult.predictions[0].bytesBase64Encoded) {
-                            const imageUrl = `data:image/png;base64,${imageResult.predictions[0].bytesBase64Encoded}`;
+                        if (imageResult.candidates && imageResult.candidates.length > 0 && imageResult.candidates[0].content?.parts?.find(p => p.inlineData)?.inlineData?.data) {
+                            const base64Data = imageResult.candidates[0].content.parts.find(p => p.inlineData).inlineData.data;
+                            const imageUrl = `data:image/png;base64,${base64Data}`;
                             imgElement.src = imageUrl;
                             imgElement.alt = item.image_prompt;
                         } else {
