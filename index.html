@@ -537,9 +537,10 @@
             for (let i = 0; i < maxRetries; i++) {
                 try {
                     const response = await fetch(url, options);
-                    if (response.status !== 429) {
+                    if (response.ok || response.status === 429) { // 429 is a retryable error
                         return response;
                     }
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 } catch (error) {
                     console.error('Fetch failed, retrying...', error);
                 }
@@ -596,30 +597,34 @@
 
             const dietCard = document.createElement('div');
             dietCard.className = 'diet-plan-card';
-            dietCard.innerHTML = `<h2 class="text-2xl font-bold mb-4 gradient-text text-center">${mealPlanData.diet_name} Diet Plan</h2><div class="meal-plan-grid"></div>`;
-            const mealPlanGrid = dietCard.querySelector('.meal-plan-grid');
+            if (mealPlanData.meals[0].meal_name === "Error") {
+                dietCard.innerHTML = `<h2 class="text-2xl font-bold mb-4 text-center text-red-500">Error</h2><p class="text-lg text-red-400 text-center">Could not generate a meal plan. Please check your inputs and try again, as this is often a temporary issue.</p>`;
+            } else {
+                dietCard.innerHTML = `<h2 class="text-2xl font-bold mb-4 gradient-text text-center">${mealPlanData.diet_name} Diet Plan</h2><div class="meal-plan-grid"></div>`;
+                const mealPlanGrid = dietCard.querySelector('.meal-plan-grid');
 
-            const mealNames = ["Breakfast", "Lunch", "Dinner", "Snack 1", "Snack 2", "Snack 3"];
-            mealPlanData.meals.forEach((meal, index) => {
-                const mealSection = document.createElement('div');
-                mealSection.className = 'meal-item';
-                mealSection.innerHTML = `<h3>${mealNames[index] || meal.meal_name}:</h3><ul></ul>`;
-                const ul = mealSection.querySelector('ul');
+                const mealNames = ["Breakfast", "Lunch", "Dinner", "Snack 1", "Snack 2", "Snack 3"];
+                mealPlanData.meals.forEach((meal, index) => {
+                    const mealSection = document.createElement('div');
+                    mealSection.className = 'meal-item';
+                    mealSection.innerHTML = `<h3>${mealNames[index] || meal.meal_name}:</h3><ul></ul>`;
+                    const ul = mealSection.querySelector('ul');
 
-                for (const item of meal.items) {
-                    const li = document.createElement('li');
-                    
-                    // Use a generic food icon
-                    const foodIconHtml = `<span class="svg-icon-text">${iconMap['generic_food_icon']}</span>`;
+                    for (const item of meal.items) {
+                        const li = document.createElement('li');
+                        
+                        // Use a generic food icon
+                        const foodIconHtml = `<span class="svg-icon-text">${iconMap['generic_food_icon']}</span>`;
 
-                    li.innerHTML = `
-                        <div class="svg-icon">${foodIconHtml}</div>
-                        <span>${item.description}</span>
-                    `;
-                    ul.appendChild(li);
-                }
-                mealPlanGrid.appendChild(mealSection);
-            });
+                        li.innerHTML = `
+                            <div class="svg-icon">${foodIconHtml}</div>
+                            <span>${item.description}</span>
+                        `;
+                        ul.appendChild(li);
+                    }
+                    mealPlanGrid.appendChild(mealSection);
+                });
+            }
             contentContainer.appendChild(dietCard);
             loadingIndicator.style.display = 'none';
         }
