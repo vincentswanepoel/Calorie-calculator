@@ -364,38 +364,24 @@
         const loadingIndicator = document.getElementById('loading-indicator');
         const contentContainer = document.getElementById('content-container');
         
+        const apiKeyConfig = document.getElementById('api-key-config');
         const apiKeyInput = document.getElementById('api-key-input');
         const saveApiKeyButton = document.getElementById('save-api-key-button');
         const apiKeyStatus = document.getElementById('api-key-status');
 
-        let geminiApiKey = '';
+        let geminiApiKey = 'AIzaSyBw_qR77bKoM2FjRhuQ_J2EOOEUpTfjrPo';
         let heightUnit = 'cm';
         let weightUnit = 'kg';
 
         // Initialize and check for existing API key
         function init() {
-            const savedKey = localStorage.getItem('geminiApiKey');
-            if (savedKey) {
-                geminiApiKey = savedKey;
-                apiKeyInput.value = '********'; // Mask the key
-                apiKeyStatus.textContent = 'API Key saved successfully!';
-                apiKeyStatus.className = 'mt-2 text-center text-sm font-semibold text-green-500';
+            if (geminiApiKey) {
+                apiKeyConfig.style.display = 'none'; // Hide the API key section
             } else {
                 apiKeyStatus.textContent = 'No API Key found. Please enter it above.';
                 apiKeyStatus.className = 'mt-2 text-center text-sm font-semibold text-red-500';
             }
         }
-
-        // Event listeners for API key management
-        saveApiKeyButton.addEventListener('click', () => {
-            if (apiKeyInput.value && apiKeyInput.value !== '********') {
-                geminiApiKey = apiKeyInput.value.trim();
-                localStorage.setItem('geminiApiKey', geminiApiKey);
-                apiKeyInput.value = '********'; // Mask the key
-                apiKeyStatus.textContent = 'API Key saved successfully!';
-                apiKeyStatus.className = 'mt-2 text-center text-sm font-semibold text-green-500';
-            }
-        });
 
         // Event listeners for unit toggles
         heightUnitBtns.forEach(btn => {
@@ -584,4 +570,3 @@
     </script>
 </body>
 </html>
-
