@@ -211,17 +211,6 @@
     </style>
 </head>
 <body>
-    <!-- API Key Configuration Section -->
-    <div id="api-key-config" class="container-calculator w-full">
-        <h2 class="text-2xl font-bold mb-4 text-center gradient-text">Configure API Key</h2>
-        <p class="text-sm text-gray-400 mb-4 text-center">To generate meal plans, you need to provide your Google Gemini API key. Get it from <a href="https://aistudio.google.com/app/apikey" target="_blank" class="accent-link">Google AI Studio</a>.</p>
-        <div class="flex items-center space-x-2">
-            <input type="password" id="api-key-input" placeholder="Enter your Gemini API Key here" class="form-input flex-grow">
-            <button id="save-api-key-button" class="submit-button p-2 text-sm md:text-base">Save Key</button>
-        </div>
-        <p id="api-key-status" class="mt-2 text-center text-sm font-semibold"></p>
-    </div>
-
     <!-- Advanced Calorie & Macro Calculator Section -->
     <div id="calorie-calculator-section" class="container-calculator w-full">
         <h1 class="text-3xl sm:text-4xl font-extrabold leading-tight mb-4 gradient-text">
@@ -364,24 +353,9 @@
         const loadingIndicator = document.getElementById('loading-indicator');
         const contentContainer = document.getElementById('content-container');
         
-        const apiKeyConfig = document.getElementById('api-key-config');
-        const apiKeyInput = document.getElementById('api-key-input');
-        const saveApiKeyButton = document.getElementById('save-api-key-button');
-        const apiKeyStatus = document.getElementById('api-key-status');
-
-        let geminiApiKey = 'AIzaSyBw_qR77bKoM2FjRhuQ_J2EOOEUpTfjrPo';
+        const geminiApiKey = 'AIzaSyBw_qR77bKoM2FjRhuQ_J2EOOEUpTfjrPo';
         let heightUnit = 'cm';
         let weightUnit = 'kg';
-
-        // Initialize and check for existing API key
-        function init() {
-            if (geminiApiKey) {
-                apiKeyConfig.style.display = 'none'; // Hide the API key section
-            } else {
-                apiKeyStatus.textContent = 'No API Key found. Please enter it above.';
-                apiKeyStatus.className = 'mt-2 text-center text-sm font-semibold text-red-500';
-            }
-        }
 
         // Event listeners for unit toggles
         heightUnitBtns.forEach(btn => {
@@ -402,12 +376,6 @@
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-
-            if (!geminiApiKey) {
-                apiKeyStatus.textContent = 'Please enter and save your API Key first!';
-                apiKeyStatus.className = 'mt-2 text-center text-sm font-semibold text-red-500';
-                return;
-            }
 
             const age = parseInt(document.getElementById('age').value);
             const gender = document.getElementById('gender').value;
@@ -478,7 +446,7 @@
             const textApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`;
             const imageApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${geminiApiKey}`;
 
-            const textPrompt = `Generate a 3-meal plan (Breakfast, Lunch, Dinner) for a ${dietType} diet, targeting approximately ${calorieGoal} calories. If the diet is "Carnivore", make sure to mention or include biltong or droëwors as a meal or snack. The meal ideas should be based on ingredients you could easily find at South African stores like Checkers or Woolworths. Be specific with food items and portion sizes. For each meal item, provide a brief, descriptive phrase suitable for an image generation model. Format the response as a JSON object with the following structure: 
+            const textPrompt = `Generate a 3-meal plan (Breakfast, Lunch, Dinner) for a ${dietType} diet, targeting approximately ${calorieGoal} calories. The meal ideas should be based on ingredients you could easily find at South African stores like Checkers or Woolworths. Be specific with food items and portion sizes. For each meal item, provide a brief, descriptive phrase suitable for an image generation model. Format the response as a JSON object with the following structure: 
             {
                 "diet_name": "${dietType}",
                 "meals": [
@@ -539,25 +507,33 @@
                     ul.appendChild(li);
 
                     const imagePrompt = `a small, top-down view of ${item.image_prompt}`;
-                    const imagePayload = {
-                        instances: { prompt: imagePrompt },
-                        parameters: { "sampleCount": 1 }
-                    };
+                    
+                    const imgElement = li.querySelector('img');
+                    
+                    try {
+                        const imagePayload = {
+                            instances: { prompt: imagePrompt },
+                            parameters: { "sampleCount": 1 }
+                        };
+                        const imageResponse = await fetchWithRetry(imageApiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(imagePayload)
+                        });
 
-                    const imageResponse = await fetchWithRetry(imageApiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(imagePayload)
-                    });
-
-                    const imageResult = await imageResponse.json();
-                    if (imageResult.predictions && imageResult.predictions.length > 0 && imageResult.predictions[0].bytesBase64Encoded) {
-                        const imageUrl = `data:image/png;base64,${imageResult.predictions[0].bytesBase64Encoded}`;
-                        const imgElement = li.querySelector('img');
-                        imgElement.src = imageUrl;
-                        imgElement.alt = item.image_prompt;
-                    } else {
-                        console.error('Failed to generate image for prompt:', imagePrompt);
+                        const imageResult = await imageResponse.json();
+                        if (imageResult.predictions && imageResult.predictions.length > 0 && imageResult.predictions[0].bytesBase64Encoded) {
+                            const imageUrl = `data:image/png;base64,${imageResult.predictions[0].bytesBase64Encoded}`;
+                            imgElement.src = imageUrl;
+                            imgElement.alt = item.image_prompt;
+                        } else {
+                            throw new Error('Image generation failed, using placeholder.');
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        const placeholderText = encodeURIComponent(item.description.split(' ')[0]);
+                        imgElement.src = `https://placehold.co/50x50/333/fff?text=${placeholderText}`;
+                        imgElement.alt = 'Image not available';
                     }
                 }
                 mealPlanGrid.appendChild(mealSection);
@@ -566,7 +542,6 @@
             loadingIndicator.style.display = 'none';
         }
 
-        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
