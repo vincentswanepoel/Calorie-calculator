@@ -501,7 +501,7 @@
                 for (const item of meal.items) {
                     const li = document.createElement('li');
                     li.innerHTML = `
-                        <img src="https://placehold.co/50x50/333/000?text=Loading" alt="Loading image" class="meal-image">
+                        <img src="https://placehold.co/50x50/333/fff?text=Loading" alt="Loading image" class="meal-image">
                         <span>${item.description}</span>
                     `;
                     ul.appendChild(li);
@@ -531,8 +531,9 @@
                         }
                     } catch (e) {
                         console.error(e);
-                        const placeholderText = encodeURIComponent(item.description.split(' ')[0]);
-                        imgElement.src = `https://placehold.co/50x50/333/fff?text=${placeholderText}`;
+                        const placeholderText = item.description.split(' ').slice(0, 3).join(' ');
+                        const encodedText = encodeURIComponent(placeholderText);
+                        imgElement.src = `https://placehold.co/50x50/333/fff?text=${encodedText}`;
                         imgElement.alt = 'Image not available';
                     }
                 }
