@@ -190,13 +190,9 @@
             align-items: center;
             gap: 1rem;
         }
-        .meal-image {
-            width: 50px;
-            height: 50px;
-            border-radius: 0.5rem;
-            border: 1px solid #444444;
-            object-fit: cover;
-            flex-shrink: 0;
+        .emoji {
+            font-size: 2.5rem;
+            line-height: 1;
         }
         
         @keyframes blink {
@@ -338,7 +334,7 @@
         </section>
         
         <p class="text-sm text-gray-500 text-center mt-8">
-            Disclaimer: This information is for educational purposes only. Please consult a healthcare professional before making any significant changes to your diet. The meal plans and images are AI-generated and are intended as visual guides.
+            Disclaimer: This information is for educational purposes only. Please consult a healthcare professional before making any significant changes to your diet. The meal plans and visuals are AI-generated and are intended as visual guides.
         </p>
     </div>
 
@@ -353,7 +349,7 @@
         const loadingIndicator = document.getElementById('loading-indicator');
         const contentContainer = document.getElementById('content-container');
         
-        const geminiApiKey = 'AIzaSyBw_qR77bKoM2FjRhuQ_J2EOOEUpTfjrPo';
+        const geminiApiKey = '';
         let heightUnit = 'cm';
         let weightUnit = 'kg';
 
@@ -444,16 +440,15 @@
             contentContainer.innerHTML = '';
             
             const textApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`;
-            const imageApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${geminiApiKey}`;
 
-            const textPrompt = `Generate a 3-meal plan (Breakfast, Lunch, Dinner) for a ${dietType} diet, targeting approximately ${calorieGoal} calories. Each meal should have a detailed description that includes specific weights and portion sizes, similar to the style of eatthismuch.com. For each meal item, provide a brief, descriptive phrase suitable for an image generation model. The meal ideas should be based on ingredients you could easily find at South African stores like Checkers or Woolworths. Format the response as a JSON object with the following structure: 
+            const textPrompt = `Generate a 3-meal plan (Breakfast, Lunch, Dinner) for a ${dietType} diet, targeting approximately ${calorieGoal} calories. Each meal should have a detailed description that includes specific weights and portion sizes, similar to the style of eatthismuch.com. For each meal item, provide a brief, descriptive phrase AND a single, relevant food emoji. The meal ideas should be based on ingredients you could easily find at South African stores like Checkers or Woolworths. Format the response as a JSON object with the following structure: 
             {
                 "diet_name": "${dietType}",
                 "meals": [
                     {
                         "meal_name": "Breakfast",
                         "items": [
-                            {"description": "...", "image_prompt": "a simple illustration of ..."},
+                            {"description": "...", "emoji": "🍞"},
                             ...
                         ]
                     },
@@ -481,7 +476,7 @@
                     diet_name: dietType,
                     meals: [{
                         meal_name: "Error",
-                        items: [{ description: "Could not generate a meal plan. Please try again.", image_prompt: "a question mark" }]
+                        items: [{ description: "Could not generate a meal plan. Please try again.", emoji: "⚠️" }]
                     }]
                 };
             }
@@ -500,43 +495,10 @@
                 for (const item of meal.items) {
                     const li = document.createElement('li');
                     li.innerHTML = `
-                        <img src="https://placehold.co/50x50/333/fff?text=Loading" alt="Loading image" class="meal-image">
+                        <span class="emoji">${item.emoji}</span>
                         <span>${item.description}</span>
                     `;
                     ul.appendChild(li);
-
-                    const imagePrompt = `a small, simple, and clean illustration of ${item.image_prompt}`;
-                    
-                    const imgElement = li.querySelector('img');
-                    
-                    try {
-                        const imagePayload = {
-                          contents: [{ parts: [{ text: imagePrompt }] }],
-                          generationConfig: { responseModalities: ['IMAGE'] },
-                        };
-
-                        const imageResponse = await fetchWithRetry(imageApiUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(imagePayload)
-                        });
-
-                        const imageResult = await imageResponse.json();
-                        if (imageResult.candidates && imageResult.candidates.length > 0 && imageResult.candidates[0].content?.parts?.find(p => p.inlineData)?.inlineData?.data) {
-                            const base64Data = imageResult.candidates[0].content.parts.find(p => p.inlineData).inlineData.data;
-                            const imageUrl = `data:image/png;base64,${base64Data}`;
-                            imgElement.src = imageUrl;
-                            imgElement.alt = item.image_prompt;
-                        } else {
-                            throw new Error('Image generation failed, using placeholder.');
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        const placeholderText = item.description.split(' ').slice(0, 3).join(' ');
-                        const encodedText = encodeURIComponent(placeholderText);
-                        imgElement.src = `https://placehold.co/50x50/333/fff?text=${encodedText}`;
-                        imgElement.alt = 'Image not available';
-                    }
                 }
                 mealPlanGrid.appendChild(mealSection);
             }
